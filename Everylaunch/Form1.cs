@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Threading;
@@ -107,11 +106,11 @@ namespace Everylaunch {
     }
 
     void searchLastused(string searchKeyword, string catSearch, string catName, int maxlen) {
-      if ((lastUsed.Count() < 1)) return;
+      if ((lastUsed.Count < 1)) return;
 
       ListView1.Items.Add(catName).Font = headFont;
 
-      for (int i = lastUsed.Count() - 1; i >= 0; i--) {
+      for (int i = lastUsed.Count - 1; i >= 0; i--) {
         var d = lastUsed[i];
         var lvi = ListView1.Items.Add(Path.GetFileName(d));
         icoLoadStack.Push(d);
