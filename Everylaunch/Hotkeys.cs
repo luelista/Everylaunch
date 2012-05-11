@@ -21,7 +21,7 @@ namespace Everylaunch {
     [DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-    public static void RegisterHotKey(Form f, Keys key, int keyId) {
+    public static void RegisterHotKey(Form f, Keys key, int keyId, bool winkey) {
       int modifiers = 0;
 
       if ((key & Keys.Alt) == Keys.Alt)
@@ -32,6 +32,9 @@ namespace Everylaunch {
 
       if ((key & Keys.Shift) == Keys.Shift)
         modifiers = modifiers | Hotkeys.MOD_SHIFT;
+
+      if (winkey)
+        modifiers = modifiers | Hotkeys.MOD_WIN;
 
       Keys k = key & ~Keys.Control & ~Keys.Shift & ~Keys.Alt;
       RegisterHotKey((IntPtr)f.Handle, keyId, (uint)modifiers, (uint)k);

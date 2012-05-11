@@ -8,6 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Threading;
 using System.Diagnostics;
+using System.IO;
 
 namespace Everylaunch {
   public partial class Form1 : Form {
@@ -19,16 +20,23 @@ namespace Everylaunch {
     Stack<String> icoLoadStack = new Stack<String>();
     bool icoLoading = false;
 
+    List<String> lastUsed = new List<String>();
+
     public Form1() {
       InitializeComponent();
 
       headFont = new Font(ListView1.Font, FontStyle.Bold);
       smallFont = new Font(ListView1.Font.FontFamily, 6, FontStyle.Regular, GraphicsUnit.Point);
 
-      Hotkeys.RegisterHotKey(this, Keys.Control | Keys.G, 0x01);
+      Hotkeys.RegisterHotKey(this, Keys.Enter, 0x01, true);
     }
 
     private void TextBox1_TextChanged(object sender, EventArgs e) {
+      timer1.Stop();
+      timer1.Start();
+    }
+
+    void searchMe() {
       string catSearch, catName;
       ListView1.Items.Clear();
 
@@ -37,17 +45,23 @@ namespace Everylaunch {
       }
 
       string searchKeyword = TextBox1.Text;
-      searchMe(searchKeyword, "*.lnk \"\\desktop\"", "Desktop");
-      searchMe(searchKeyword, "*.lnk \"\\start menu\"", "Start Menu");
-      searchMe(searchKeyword, "*.exe", "Executables");
+
+      if (String.IsNullOrEmpty(searchKeyword)) {
+        searchLastused("", "", "Last used applications", 20);
+      } else {
+        searchCat(searchKeyword, "*.lnk \"\\desktop\"", "Desktop", 10);
+        searchCat(searchKeyword, "*.lnk \"\\start menu\"", "Start Menu", 10);
+        searchCat(searchKeyword, "*.exe", "Executables", 25);
+      }
 
       if (ListView1.Items.Count > 1) {
         ListView1.Items[1].Selected = true;
       }
-
     }
 
     private void Form1_Load(object sender, EventArgs e) {
+      Top = 0;
+      Left = Screen.PrimaryScreen.WorkingArea.Right - Width - 50;
     }
 
 
@@ -73,8 +87,8 @@ namespace Everylaunch {
       }
     }
 
-    void searchMe(string searchKeyword, string catSearch, string catName) {
-      var res = api.GetResults((catSearch + (" " + searchKeyword)), 10);
+    void searchCat(string searchKeyword, string catSearch, string catName, int maxlen) {
+      var res = api.GetResults((catSearch + (" " + searchKeyword)), maxlen);
       if ((res.Length <= 1)) return;
 
       ListView1.Items.Add(catName).Font = headFont;
@@ -85,6 +99,25 @@ namespace Everylaunch {
         lvi.Tag = d;
         lvi.ImageKey = d.filespec;
         var lvsvi = lvi.SubItems.Add(d.filespec);
+      }
+      if (!icoLoading) {
+        Thread t = new Thread(this.work);
+        t.Start();
+      }
+    }
+
+    void searchLastused(string searchKeyword, string catSearch, string catName, int maxlen) {
+      if ((lastUsed.Count() < 1)) return;
+
+      ListView1.Items.Add(catName).Font = headFont;
+
+      for (int i = lastUsed.Count() - 1; i >= 0; i--) {
+        var d = lastUsed[i];
+        var lvi = ListView1.Items.Add(Path.GetFileName(d));
+        icoLoadStack.Push(d);
+        lvi.Tag = new ResultObj() {filespec=d, name=Path.GetFileName(d) };
+        lvi.ImageKey = d;
+        var lvsvi = lvi.SubItems.Add(d);
       }
       if (!icoLoading) {
         Thread t = new Thread(this.work);
@@ -139,6 +172,7 @@ namespace Everylaunch {
 
           string fileSpec = ((ResultObj)ListView1.SelectedItems[0].Tag).filespec;
           Process.Start(fileSpec);
+          addToMru(fileSpec);
 
           break;
 
@@ -147,6 +181,11 @@ namespace Everylaunch {
           break;
 
       }
+    }
+
+    void addToMru(string filespec) {
+      if (lastUsed.Contains(filespec)) lastUsed.Remove(filespec);
+      lastUsed.Add(filespec);
     }
 
     int selectedIndex {
@@ -161,9 +200,37 @@ namespace Everylaunch {
 
     private void TextBox1_KeyPress(object sender, KeyPressEventArgs e) {
       //to get rid of stupid beep sound
-      if (e.KeyChar == (char)13) {
+      if (e.KeyChar == (char)13 || e.KeyChar == (char)27) {
         e.Handled = true;
       }
+    }
+    
+    private void ListView1_MouseDoubleClick(object sender, MouseEventArgs e) {
+      if (selectedIndex == -1) return;
+      this.Hide();
+
+      string fileSpec = ((ResultObj)ListView1.SelectedItems[0].Tag).filespec;
+      Process.Start("explorer.exe", "/e,/select,\"" + fileSpec + "\"");
+      addToMru(fileSpec);
+
+    }
+
+    private void ListView1_MouseClick(object sender, MouseEventArgs e) {
+      if (e.Button == MouseButtons.Right) {
+        ListViewItem it = ListView1.GetItemAt(e.X, e.Y);
+        if (it == null) return;
+        this.Hide();
+
+        string fileSpec = ((ResultObj)it.Tag).filespec;
+        Process.Start(fileSpec);
+        addToMru(fileSpec);
+
+      }
+    }
+
+    private void timer1_Tick(object sender, EventArgs e) {
+      timer1.Stop();
+      searchMe();
     }
 
   }
