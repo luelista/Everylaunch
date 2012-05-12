@@ -123,6 +123,7 @@
       this.Text = "Everylaunch";
       this.TopMost = true;
       this.Load += new System.EventHandler(this.Form1_Load);
+      this.VisibleChanged += new System.EventHandler(this.Form1_VisibleChanged);
       this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
       this.ResumeLayout(false);
       this.PerformLayout();

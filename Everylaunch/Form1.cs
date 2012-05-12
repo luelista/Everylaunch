@@ -11,9 +11,8 @@ using System.IO;
 
 namespace Everylaunch {
   public partial class Form1 : Form {
-
     EveryThingIPCWindow api = new EveryThingIPCWindow();
-     
+    
     Font headFont, smallFont;
 
     Stack<String> icoLoadStack = new Stack<String>();
@@ -28,6 +27,7 @@ namespace Everylaunch {
       smallFont = new Font(ListView1.Font.FontFamily, 6, FontStyle.Regular, GraphicsUnit.Point);
 
       Hotkeys.RegisterHotKey(this, Keys.Enter, 0x01, true);
+      Hotkeys.RegisterHotKey(this, Keys.Space, 0x02, true);
     }
 
     private void TextBox1_TextChanged(object sender, EventArgs e) {
@@ -38,10 +38,6 @@ namespace Everylaunch {
     void searchMe() {
       string catSearch, catName;
       ListView1.Items.Clear();
-
-      if ((ImageList1.Images.Count > 500)) {
-        ImageList1.Images.Clear();
-      }
 
       string searchKeyword = TextBox1.Text;
 
@@ -68,7 +64,10 @@ namespace Everylaunch {
     protected override void WndProc(ref Message m) {
       base.WndProc(ref m);
 
-      if (m.Msg == Hotkeys.WM_HOTKEY) {
+      if (m.Msg == Hotkeys.WM_HOTKEY || m.LParam == (IntPtr)0x01) {
+        
+      }
+      if (m.Msg == Hotkeys.WM_HOTKEY || m.LParam == (IntPtr)0x02) {
         this.Show();
         this.Activate();
         TextBox1.Text = "";
@@ -88,7 +87,7 @@ namespace Everylaunch {
 
     void searchCat(string searchKeyword, string catSearch, string catName, int maxlen) {
       var res = api.GetResults((catSearch + (" " + searchKeyword)), maxlen);
-      if ((res.Length <= 1)) return;
+      if ((res.Length < 1)) return;
 
       ListView1.Items.Add(catName).Font = headFont;
 
@@ -142,7 +141,7 @@ namespace Everylaunch {
       } finally {
         icoLoading = false;
       }
-     }
+    }
 
     private void TextBox1_KeyDown(object sender, KeyEventArgs e) {
       switch (e.KeyCode) {
@@ -230,6 +229,12 @@ namespace Everylaunch {
     private void timer1_Tick(object sender, EventArgs e) {
       timer1.Stop();
       searchMe();
+    }
+
+    private void Form1_VisibleChanged(object sender, EventArgs e) {
+      if ((ImageList1.Images.Count > 250)) {
+        ImageList1.Images.Clear();
+      }
     }
 
   }
