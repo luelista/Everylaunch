@@ -8,9 +8,14 @@ using System.Windows.Forms;
 using System.Threading;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Everylaunch {
   public partial class Form1 : Form {
+
+    [DllImport("user32.dll")]
+    static extern short GetAsyncKeyState(System.Windows.Forms.Keys vKey);
+
     EveryThingIPCWindow api = new EveryThingIPCWindow();
     
     Font headFont, smallFont;
@@ -18,16 +23,53 @@ namespace Everylaunch {
     Stack<String> icoLoadStack = new Stack<String>();
     bool icoLoading = false;
 
-    List<String> lastUsed = new List<String>();
+    List<string> lastUsed = new List<string>();
+
+    String dataDir = Path.Combine(
+          Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+          "Everylaunch\\");
+
+    Utilities.globalKeyboardHook hook = new Utilities.globalKeyboardHook();
 
     public Form1() {
       InitializeComponent();
 
+      Directory.CreateDirectory(dataDir);
+
+      if (File.Exists(dataDir + "mru.txt")) {
+        lastUsed = new List<string>(File.ReadAllLines(dataDir + "mru.txt"));
+      }
+
       headFont = new Font(ListView1.Font, FontStyle.Bold);
       smallFont = new Font(ListView1.Font.FontFamily, 6, FontStyle.Regular, GraphicsUnit.Point);
 
-      Hotkeys.RegisterHotKey(this, Keys.Enter, 0x01, true);
-      Hotkeys.RegisterHotKey(this, Keys.Space, 0x02, true);
+      //Hotkeys.RegisterHotKey(this, Keys.Space, 0x02, true);
+      //Hotkeys.RegisterHotKey(this, Keys.Enter, 0x01, true);
+      Debug.Print("hook start");
+      hook.hook();
+      hook.KeyDown += new KeyEventHandler(hook_KeyDown);
+    }
+
+    void hook_KeyDown(object sender, KeyEventArgs e) {
+      Debug.Print("keyDown " + e.Modifiers.ToString() + "   " + e.KeyCode.ToString());
+      if (e.KeyCode == Keys.Space && ((GetAsyncKeyState(Keys.LWin) != 0) || (GetAsyncKeyState(Keys.RWin) != 0))) {
+        e.Handled = true;
+        this.Show();
+        this.Activate();
+        TextBox1.Text = "";
+        ListView1.Items.Clear();
+        TextBox1.Focus();
+      }
+      if (e.KeyCode == Keys.Enter && ((GetAsyncKeyState(Keys.LWin) != 0) || (GetAsyncKeyState(Keys.RWin) != 0))) {
+        e.Handled = true;
+        try {
+          String[] call = File.ReadAllLines(dataDir + "winEnter.txt");
+          Process.Start(call[0], call[1]);
+        } catch (Exception ex) {
+          MessageBox.Show(ex.Message);
+        }
+      }
+      
     }
 
     private void TextBox1_TextChanged(object sender, EventArgs e) {
@@ -59,15 +101,20 @@ namespace Everylaunch {
       Left = Screen.PrimaryScreen.WorkingArea.Right - Width - 50;
     }
 
-
+    /*
     // CF Note: The WndProc is not present in the Compact Framework (as of vers. 3.5)! please derive from the MessageWindow class in order to handle WM_HOTKEY
     protected override void WndProc(ref Message m) {
       base.WndProc(ref m);
 
-      if (m.Msg == Hotkeys.WM_HOTKEY || m.LParam == (IntPtr)0x01) {
-        
+      if (m.Msg == Hotkeys.WM_HOTKEY && m.WParam == (IntPtr)0x01) {
+        try {
+          String[] call = File.ReadAllLines(dataDir + "winEnter.txt");
+          Process.Start(call[0], call[1]);
+        } catch (Exception ex) {
+          MessageBox.Show(ex.Message);
+        }
       }
-      if (m.Msg == Hotkeys.WM_HOTKEY || m.LParam == (IntPtr)0x02) {
+      if (m.Msg == Hotkeys.WM_HOTKEY && m.WParam == (IntPtr)0x02) {
         this.Show();
         this.Activate();
         TextBox1.Text = "";
@@ -75,13 +122,14 @@ namespace Everylaunch {
         TextBox1.Focus();
       }
     }
+    */
 
     private void Form1_FormClosing(object sender, FormClosingEventArgs e) {
       if (e.CloseReason == CloseReason.UserClosing) {
         e.Cancel = true;
         this.Hide();
       } else {
-        Hotkeys.UnregisterHotKey(this, 0x01);
+        hook.unhook();
       }
     }
 
@@ -184,6 +232,7 @@ namespace Everylaunch {
     void addToMru(string filespec) {
       if (lastUsed.Contains(filespec)) lastUsed.Remove(filespec);
       lastUsed.Add(filespec);
+      File.WriteAllLines(dataDir + "mru.txt", lastUsed.ToArray());
     }
 
     int selectedIndex {

@@ -14,10 +14,11 @@ namespace Everylaunch {
     public static int WM_HOTKEY = 0x312;
     #endregion
 
-    [DllImport("user32.dll")]
+    [DllImport("user32", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vlc);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError=true)]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     public static void RegisterHotKey(Form f, Keys key, int keyId, bool winkey) {
@@ -36,7 +37,12 @@ namespace Everylaunch {
         modifiers = modifiers | Hotkeys.MOD_WIN;
 
       Keys k = key & ~Keys.Control & ~Keys.Shift & ~Keys.Alt;
-      RegisterHotKey((IntPtr)f.Handle, keyId, (uint)modifiers, (uint)k);
+      bool r = RegisterHotKey((IntPtr)f.Handle, keyId, (uint)modifiers, (uint)k);
+      if (!r) {
+
+        
+      }
+      MessageBox.Show("Unable to register hotkey. Error: " + Marshal.GetLastWin32Error().ToString());
     }
 
     private delegate void Func();
